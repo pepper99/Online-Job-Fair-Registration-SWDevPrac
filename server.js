@@ -12,9 +12,9 @@ const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUI = require("swagger-ui-express");
 
 //Route files
-const hospitals = require("./routes/hospitals");
+const companies = require("./routes/companies");
 const auth = require("./routes/auth");
-const appointments = require("./routes/appointments");
+const bookings = require("./routes/bookings");
 
 dotenv.config({ path: "./config/config.env" });
 
@@ -50,30 +50,30 @@ app.use(cors());
 
 const PORT = process.env.PORT || 5000;
 
-const swaggerOptions = {
-  swaggerDefinition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Library API",
-      version: "1.0.0",
-      description: "A simple Express VacQ API",
-    },
-    servers: [
-      {
-        url: `${process.env.SWAGGER_SERVER}/api/v1`,
-      },
-    ],
-  },
-  apis: ["./routes/*.js"],
-};
+// const swaggerOptions = {
+//   swaggerDefinition: {
+//     openapi: "3.0.0",
+//     info: {
+//       title: "Library API",
+//       version: "1.0.0",
+//       description: "A simple Express VacQ API",
+//     },
+//     servers: [
+//       {
+//         url: `${process.env.SWAGGER_SERVER}/api/v1`,
+//       },
+//     ],
+//   },
+//   apis: ["./routes/*.js"],
+// };
 
-const swaggerDocs = swaggerJsDoc(swaggerOptions);
-app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerDocs));
+// const swaggerDocs = swaggerJsDoc(swaggerOptions);
+// app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(swaggerDocs));
 
 //Mount routers
-app.use("/api/v1/hospitals", hospitals);
+app.use("/api/v1/companies", companies);
 app.use("/api/v1/auth", auth);
-app.use("/api/v1/appointments", appointments);
+app.use("/api/v1/bookings", bookings);
 
 const server = app.listen(
   PORT,
