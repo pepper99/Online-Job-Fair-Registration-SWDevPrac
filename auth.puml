@@ -1,0 +1,185 @@
+@startuml Authentication Scenario
+skinparam style strictuml
+actor User
+participant server [
+    =<<javaScript>>
+    "":server""
+]
+participant authRouter [
+    =<<router>>
+    "":auth""
+]
+participant middleware [
+    =<<middleware>>
+    "":auth""
+]
+participant authController [
+    =<<controller>>
+    "":auth""
+]
+participant userModel [
+    =<<model>>
+    "":User""
+]
+participant userMongo [
+    =<<MongoDB>>
+    "":users""
+]
+
+activate User
+alt Register User
+    User->server: req.post('/auth/register')
+    activate server
+    server->authRouter: app.use('/auth', auth)
+    deactivate server
+    activate authRouter
+    authRouter->authController: register()
+    deactivate authRouter
+    activate authController
+    alt Pass
+        authController->userModel: create({name, email, password, tel, role})
+        activate userModel
+        userModel->userMongo: UserSchema
+        activate userMongo
+        userMongo-->userModel: user
+        deactivate userMongo
+        userModel-->authController: user
+        deactivate userModel
+        authController->authController: user.getSignedJwtToken()
+        activate authController
+        authController-->authController: token
+        deactivate authController
+
+        alt NODE_ENV is 'production'
+            authController->authController: options.secure = true
+            activate authController
+            deactivate authController
+        end
+        authController->User:res.status(200).cookie('token', token, options).json({success, token})
+    else Except
+        authController->User:res.status(400).json({success})
+    end
+    deactivate authController
+    
+else Login User
+    User->server: req.post('/auth/login')
+    activate server
+    server->authRouter: app.use('/auth', auth)
+    deactivate server
+    activate authRouter
+    authRouter->authController: login()
+    deactivate authRouter
+    activate authController
+    alt Pass
+        alt Email and Password are provided
+            authController->userModel: findOne({email})
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel->userModel: select('+password')
+            activate userModel
+            userModel-->userModel: user
+            deactivate userModel
+            userModel-->authController: user
+            deactivate userModel
+
+            alt User Exists
+                authController->authController: user.matchPassword(password)
+                activate authController
+                deactivate authController
+
+                alt Password Matched
+                    authController->authController: user.getSignedJwtToken()
+                    activate authController
+                    authController-->authController: token
+                    deactivate authController
+
+                    alt NODE_ENV is 'production'
+                        authController->authController: options.secure = true
+                        activate authController
+                        deactivate authController
+                    end
+                    authController->User:res.status(200).cookie('token', token, options).json({success, token})
+                else Else
+                    authController->User:res.status(400).json({success, message})
+                end
+            else Else
+                authController->User:res.status(400).json({success, message})
+            end
+        else Else
+            authController->User:res.status(400).json({success, message})
+        end
+    else Except
+        authController->User:res.status(400).json({success, message})
+    end
+    deactivate authController
+
+else Get Logged in User Information
+    User->server: req.get('/auth/me')
+    activate server
+    server->authRouter: app.use('/auth', auth)
+    deactivate server
+    activate authRouter
+    authRouter->middleware: protect()
+    deactivate authRouter
+
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+
+            middleware->authController: getMe()
+            activate authController
+
+            authController->userModel: findById(req.user.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->authController: user
+            deactivate userModel
+
+            authController->User: res.status(200).json({success, data})
+            deactivate authController
+
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+else Logout User
+    User->server: req.get('/auth/logout')
+    activate server
+    server->authRouter: app.use('/auth', auth)
+    deactivate server
+    activate authRouter
+    authRouter->authController: logout()
+    deactivate authRouter
+
+    activate authController
+    authController-->authController: res.cookie('token', 'none', {expires, httpOnly});
+    activate authController
+    deactivate authController
+    authController->User: res.status(200).json({success, data})
+    deactivate authController
+end
+deactivate User
+
+@enduml
