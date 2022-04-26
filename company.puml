@@ -1,0 +1,290 @@
+@startuml Manage Company Scenario
+skinparam style strictuml
+actor User
+participant server [
+    =<<javaScript>>
+    "":server""
+]
+participant companyRouter [
+    =<<router>>
+    "":companies""
+]
+participant companyRouter [
+    =<<router>>
+    "":auth""
+]
+participant middleware [
+    =<<middleware>>
+    "":auth""
+]
+participant companyController [
+    =<<controller>>
+    "":companies""
+]
+participant companyModel [
+    =<<model>>
+    "":Company""
+]
+participant userModel [
+    =<<model>>
+    "":User""
+]
+participant bookingMongo [
+    =<<MongoDB>>
+    "":bookings""
+]
+participant companyMongo [
+    =<<MongoDB>>
+    "":companies""
+]
+participant userMongo [
+    =<<MongoDB>>
+    "":users""
+]
+
+activate User
+
+alt Get All Companies
+    User->server: req.get('/companies')
+        activate server
+    server->companyRouter:app.use('/companies', companies)
+        deactivate server
+        activate companyRouter
+    companyRouter->companyController: getCompanies()
+        deactivate companyRouter
+        activate companyController
+    companyController->companyController: JSON.stringify(req)
+        activate companyController
+        deactivate companyController
+    companyController->companyController: replace(/\b(gt|gte|lt|lte|in)\b/g,(match) => `$${match}`)
+        activate companyController
+        deactivate companyController
+    companyController->companyModel: find(JSON.parse(queryStr))
+        activate companyModel
+    companyModel->companyMongo: CompanySchema
+        activate companyMongo
+    companyMongo-->companyModel: companies
+        deactivate companyMongo
+    companyModel->companyModel: populate({path:'booking'})
+        activate companyModel
+    companyModel->bookingMongo: BookingSchema
+        activate bookingMongo
+    bookingMongo-->companyModel: bookings
+        deactivate bookingMongo
+        deactivate companyModel
+    companyModel-->companyController: bookings
+        deactivate companyModel
+    companyController->companyModel: countDocuments()
+        activate companyModel
+    companyModel->companyMongo: CompanySchema
+        activate companyMongo
+    companyMongo->companyModel: company count
+        deactivate companyMongo
+    companyModel->companyController: company count
+        deactivate companyModel
+    alt Pass
+        companyController-->User: res.status(200).json({success, count, pagination, data})
+    else Except
+        companyController-->User: res.status(400).json({ success });
+    end
+        deactivate companyController
+
+else Get Single Company
+    User->server: req.get('/companies/:id')
+        activate server
+    server->companyRouter:app.use('/companies', companies)
+        deactivate server
+        activate companyRouter
+    companyRouter->companyController: getCompanie()
+        deactivate companyRouter
+        activate companyController
+    alt Pass
+        companyController->companyModel: findById(req.params.id)
+            activate companyModel
+        companyModel->companyMongo: CompanySchema
+            activate companyMongo
+        companyMongo-->companyModel: company
+            deactivate companyMongo
+        companyModel-->companyController: company
+            deactivate companyModel
+        alt Company not exist
+            companyController-->User: res.status(400).json({ success, message })
+        else Company exist
+            companyController-->User: res.status(200).json({ success, data})
+        end
+    else Except
+        companyController-->User: res.status(400).json({ success, message })
+    end
+        deactivate companyController
+
+else Add Company
+    User->server: req.post('/companies/')
+        activate server
+    server->companyRouter:app.use('/companies', companies)
+        deactivate server
+        activate companyRouter
+    companyRouter->middleware: protect()
+        deactivate companyRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->middleware: authorize('admin')
+            alt User role is admin
+                middleware -> companyController: createCompany()
+                    activate companyController
+                alt Pass
+                companyController->companyModel: create(req.body)
+                    activate companyModel
+                companyModel->companyMongo: CompanySchema
+                    activate companyMongo
+                companyMongo-->companyModel: company
+                    deactivate companyMongo
+                companyModel-->companyController: company
+                    deactivate companyModel
+                companyController-->User: res.status(200).json({ success, data })
+                else Except
+                companyController-->User: res.status(400).json({ success, message })
+                end
+                    deactivate companyController
+            else Except
+                middleware->User: res.status(403).json({success, message})
+            end
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+else Update Company
+    User->server: req.put('/companies/:id')
+        activate server
+    server->companyRouter:app.use('/companies', companies)
+        deactivate server
+        activate companyRouter
+    companyRouter->middleware: protect()
+        deactivate companyRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->middleware: authorize('admin')
+            alt User role is admin
+                middleware -> companyController: updateCompany()
+                    activate companyController
+                alt Pass
+                companyController->companyModel: findByIdAndUpdate(req.params.id, req.body)
+                    activate companyModel
+                companyModel->companyMongo: CompanySchema
+                    activate companyMongo
+                companyMongo-->companyModel: company
+                    deactivate companyMongo
+                companyModel-->companyController: company
+                    deactivate companyModel
+                    alt Company exist
+                        companyController-->User: res.status(200).json({ success, data })
+                    else Company not exist
+                        companyController-->User: res.status(400).json({ success })
+                    end
+                        deactivate companyController
+                else Except
+                    companyController-->User: res.status(400).json({ success, message })
+                end
+            else Except
+                middleware->User: res.status(403).json({success, message})
+            end
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+    
+else Delete Company
+    User->server: req.delete('/companies/:id')
+        activate server
+    server->companyRouter:app.use('/companies', companies)
+        deactivate server
+        activate companyRouter
+    companyRouter->middleware: protect()
+        deactivate companyRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->middleware: authorize('admin')
+
+            alt User role is admin
+                middleware -> companyController: deleteCompany()
+                    activate companyController
+                alt Pass
+                companyController->companyModel: findById(req.params.id)
+                    activate companyModel
+                companyModel->companyMongo: CompanySchema
+                    activate companyMongo
+                companyMongo-->companyModel: company
+                    deactivate companyMongo
+                companyModel-->companyController: company
+                    deactivate companyModel
+                    alt Company exist
+                        companyController-->User: res.status(200).json({ success, data })
+                    else Company not exist
+                        companyController-->User: res.status(400).json({ success, message })
+                    end
+                        deactivate companyController
+                else Except
+                companyController-->User: res.status(400).json({ success })
+                end
+                    deactivate companyController
+            else Except
+                middleware->User: res.status(403).json({success, message})
+            end
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+end
+
+deactivate User
+
+@enduml
