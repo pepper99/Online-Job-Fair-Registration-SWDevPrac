@@ -57,7 +57,7 @@ exports.login = async (req, res, next) => {
     if (!email || !password) {
       return res
         .status(400)
-        .json({ success: false, msg: "Please provide an email and password" });
+        .json({ success: false, message: "Please provide an email and password" });
     }
 
     //Check for user
@@ -65,7 +65,7 @@ exports.login = async (req, res, next) => {
     if (!user) {
       return res
         .status(400)
-        .json({ success: false, msg: "Invalid credentials" });
+        .json({ success: false, message: "Invalid credentials" });
     }
 
     //Check if password matches
@@ -73,7 +73,7 @@ exports.login = async (req, res, next) => {
     if (!isMatch) {
       return res
         .status(400)
-        .json({ success: false, msg: "Invalid credentials" });
+        .json({ success: false, message: "Invalid credentials" });
     }
 
     //Create token
@@ -85,7 +85,7 @@ exports.login = async (req, res, next) => {
       .status(401)
       .json({
         success: false,
-        msg: "Cannot convert email or password to string",
+        message: "Cannot convert email or password to string",
       });
   }
 };
