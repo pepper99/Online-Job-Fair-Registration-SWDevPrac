@@ -1,0 +1,520 @@
+@startuml Manage Booking Scenario
+skinparam style strictuml
+actor User
+participant server [
+    =<<javaScript>>
+    "":server""
+]
+participant bookingRouter [
+    =<<router>>
+    "":bookings""
+]
+participant companyRouter [
+    =<<router>>
+    "":companies""
+]
+participant middleware [
+    =<<middleware>>
+    "":auth""
+]
+participant bookingController [
+    =<<controller>>
+    "":bookings""
+]
+participant companyController [
+    =<<controller>>
+    "":companies""
+]
+participant bookingModel [
+    =<<model>>
+    "":Booking""
+]
+participant companyModel [
+    =<<model>>
+    "":Company""
+]
+participant userModel [
+    =<<model>>
+    "":User""
+]
+participant bookingMongo [
+    =<<MongoDB>>
+    "":bookings""
+]
+participant companyMongo [
+    =<<MongoDB>>
+    "":companies""
+]
+participant userMongo [
+    =<<MongoDB>>
+    "":users""
+]
+
+activate User
+alt Get All Bookings
+    User->server: req.get('/bookings')
+    activate server
+    server->bookingRouter: app.use('/bookings', bookings)
+    deactivate server
+    activate bookingRouter
+    bookingRouter->middleware: protect()
+    deactivate bookingRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->bookingController: getBookings()
+            activate bookingController
+            alt User is admin
+                alt Pass
+                    bookingController->bookingModel: find()
+                    activate bookingModel
+                    bookingModel->bookingMongo: BookingSchema
+                    activate bookingMongo
+                    bookingMongo-->bookingModel: bookings
+                    deactivate bookingMongo
+                    bookingModel->bookingModel: populate({path: 'company'})
+                    activate bookingModel
+                    bookingModel->companyMongo: CompanySchema
+                    activate companyMongo
+                    companyMongo-->bookingModel: companies
+                    deactivate companyMongo
+                    deactivate bookingModel
+                    bookingModel-->bookingController: bookings
+                    deactivate bookingModel
+                    bookingController->User:res.status(200).json({success, count, bookings})
+                else Except
+                    bookingController->User:res.status(500).json({success, message})
+                end
+            else User is not admin
+                alt Pass
+                    bookingController->bookingModel: find({user})
+                    activate bookingModel
+                    bookingModel->bookingMongo: BookingSchema
+                    activate bookingMongo
+                    bookingMongo-->bookingModel: bookings
+                    deactivate bookingMongo
+                    bookingModel->bookingModel: populate({path: 'company'})
+                    activate bookingModel 
+                    bookingModel->companyMongo: CompanySchema
+                    activate companyMongo
+                    companyMongo-->bookingModel: companies
+                    deactivate companyMongo
+                    deactivate bookingModel
+                    bookingModel-->bookingController: bookings
+                    deactivate bookingModel
+                    bookingController->User:res.status(200).json({success, count, bookings})
+                else Except
+                    bookingController->User:res.status(500).json({success, message})
+                end
+            end
+            deactivate bookingController
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+else Get All Bookings from a Company
+    User->server: req.get('/companies/:companyId/bookings')
+    activate server
+    server->companyRouter: app.use('/companies', companies)
+    deactivate server
+    activate companyRouter
+    companyRouter->bookingRouter: router.use('/:companyId/bookings', bookingRouter)
+    deactivate companyRouter
+    activate bookingRouter
+    bookingRouter->middleware: protect()
+    deactivate bookingRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->bookingController: getBookings()
+            activate bookingController
+            alt User is admin
+                alt Pass
+                    bookingController->bookingModel: find({company})
+                    activate bookingModel
+                    bookingModel->bookingMongo: BookingSchema
+                    activate bookingMongo
+                    bookingMongo-->bookingModel: bookings
+                    deactivate bookingMongo
+                    bookingModel->bookingModel: populate({path: 'company'})
+                    activate bookingModel
+                    bookingModel->companyMongo: CompanySchema
+                    activate companyMongo
+                    companyMongo-->bookingModel: companies
+                    deactivate companyMongo
+                    deactivate bookingModel
+                    bookingModel-->bookingController: bookings
+                    deactivate bookingModel
+                    bookingController->User:res.status(200).json({success, count, bookings})
+                else Except
+                    bookingController->User:res.status(500).json({success, message})
+                end
+            else User is not admin
+                alt Pass
+                    bookingController->bookingModel: find({user, company})
+                    activate bookingModel
+                    bookingModel->bookingMongo: BookingSchema
+                    activate bookingMongo
+                    bookingMongo-->bookingModel: bookings
+                    deactivate bookingMongo
+                    bookingModel-->bookingModel: populate({path: 'company'})
+                    activate bookingModel 
+                    bookingModel->companyMongo: CompanySchema
+                    activate companyMongo
+                    companyMongo-->bookingModel: companies
+                    deactivate companyMongo
+                    deactivate bookingModel
+                    bookingModel-->bookingController: bookings
+                    deactivate bookingModel
+                    bookingController->User:res.status(200).json({success, count, bookings})
+                else Except
+                    bookingController->User:res.status(500).json({success, message})
+                end
+            end
+            deactivate bookingController
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+else Get Single Booking
+    User->server: req.get('/bookings/:id')
+    activate server
+    server->bookingRouter: app.use('/bookings', bookings)
+    deactivate server
+    activate bookingRouter
+    bookingRouter->middleware: protect()
+    deactivate bookingRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->bookingController: getBooking()
+            activate bookingController
+            
+            alt Pass
+                bookingController->bookingModel: findById(req.params.id)
+                activate bookingModel
+                bookingModel->bookingMongo: BookingSchema
+                activate bookingMongo
+                bookingMongo-->bookingModel: booking
+                deactivate bookingMongo
+                bookingModel->bookingModel: populate({path: 'company'})
+                activate bookingModel
+                bookingModel->companyMongo: CompanySchema
+                activate companyMongo
+                companyMongo-->bookingModel: company
+                deactivate companyMongo
+                deactivate bookingModel
+                bookingModel-->bookingController: booking
+                alt Booking Exists
+                    alt User is Admin or User owns the booking
+                        bookingController->User:res.status(200).json({success, data})
+                    else Else
+                        bookingController->User:res.status(401).json({success, message})
+                    end
+                else Else
+                    bookingController->User:res.status(404).json({success, message})
+                end
+                deactivate bookingModel
+            else Except
+                bookingController->User:res.status(500).json({success, message})
+            end
+            deactivate bookingController
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+else Add Booking
+    User->server: req.post('/companies/:companyId/bookings')
+    activate server
+    server->companyRouter: app.use('/companies', companies)
+    deactivate server
+    activate companyRouter
+    companyRouter->bookingRouter: router.use('/:companyId/bookings', bookingRouter)
+    deactivate companyRouter
+    activate bookingRouter
+    bookingRouter->middleware: protect()
+    deactivate bookingRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->middleware: authorize('admin', 'user')
+            alt User role is admin or user
+
+                middleware->bookingController: addBooking()
+                activate bookingController
+                
+                alt Pass
+                    bookingController->companyModel: findById(req.params.companyId)
+                    activate companyModel
+                    companyModel->companyMongo: CompanySchema
+                    activate companyMongo
+                    companyMongo-->companyModel: company
+                    deactivate companyMongo
+                    companyModel-->bookingController: company
+                    deactivate companyModel
+
+                    alt Company Exists
+                        bookingController->bookingModel: find({user})
+                        activate bookingModel
+                        bookingModel->bookingMongo: BookingSchema
+                        activate bookingMongo
+                        bookingMongo-->bookingModel: bookings
+                        deactivate bookingMongo
+                        bookingModel-->bookingController: bookings
+                        deactivate bookingModel
+
+                        alt User is admin or existed bookings are less than 3
+                            alt Booking date is between 10th May 2022 and 14th May 2022
+                                bookingController->bookingModel: create(req.body)
+                                activate bookingModel
+                                bookingModel->bookingMongo: BookingSchema
+                                activate bookingMongo
+                                bookingMongo-->bookingModel: booking
+                                deactivate bookingMongo
+                                bookingModel-->bookingController: booking
+                                deactivate bookingModel
+                                bookingController->User:res.status(200).json({success, data})
+                            else Else
+                                bookingController->User:res.status(400).json({success, message})
+                            end
+                        else Else
+                            bookingController->User:res.status(400).json({success, message})
+                        end
+                        deactivate bookingModel
+                    else Else
+                        bookingController->User:res.status(404).json({success, message})
+                    end
+                else Except
+                    bookingController->User:res.status(500).json({success, message})
+                end
+                deactivate bookingController
+            
+            else Else
+                middleware->User: res.status(403).json({success, message})
+            end
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+else Update Booking
+    User->server: req.put('/bookings/:id')
+    activate server
+    server->bookingRouter: app.use('/companies', companies)
+    deactivate server
+    activate bookingRouter
+    bookingRouter->middleware: protect()
+    deactivate bookingRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->middleware: authorize('admin', 'user')
+            alt User role is admin or user
+
+                middleware->bookingController: updateBooking()
+                activate bookingController
+                
+                alt Pass
+                    bookingController->bookingModel: findById(req.params.id)
+                    activate bookingModel
+                    bookingModel->bookingMongo: BookingSchema
+                    activate bookingMongo
+                    bookingMongo-->bookingModel: booking
+                    deactivate bookingMongo
+                    bookingModel-->bookingController: booking
+                    deactivate bookingModel
+
+                    alt Booking Exists
+                        alt User is admin or user owns the booking
+                            alt User is admin or existed bookings are less than 3
+                                alt Booking date is between 10th May 2022 and 14th May 2022
+                                    bookingController->bookingModel: findByIdAndUpdate(req.params.id, req.body)
+                                    activate bookingModel
+                                    bookingModel->bookingMongo: BookingSchema
+                                    activate bookingMongo
+                                    bookingMongo-->bookingModel: booking
+                                    deactivate bookingMongo
+                                    bookingModel-->bookingController: booking
+                                    deactivate bookingModel
+                                    bookingController->User:res.status(200).json({success, data})
+                                else Else
+                                    bookingController->User:res.status(400).json({success, message})
+                                end
+                            else Else
+                                bookingController->User:res.status(400).json({success, message})
+                            end
+                        else Else
+                            bookingController->User:res.status(401).json({success, message})
+                        end
+                    else Else
+                        bookingController->User:res.status(404).json({success, message})
+                    end
+                else Except
+                    bookingController->User:res.status(500).json({success, message})
+                end
+                deactivate bookingController
+            
+            else Else
+                middleware->User: res.status(403).json({success, message})
+            end
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+else Delete Booking
+    User->server: req.delete('/bookings/:id')
+    activate server
+    server->bookingRouter: app.use('/companies', companies)
+    deactivate server
+    activate bookingRouter
+    bookingRouter->middleware: protect()
+    deactivate bookingRouter
+    alt Token Exists
+        alt Pass
+            activate middleware
+            middleware->middleware: jwt.verify(token, JWT_SECRET)
+            activate middleware
+            middleware-->middleware: decoded
+            deactivate middleware
+            middleware->userModel: findById(decoded.id)
+            activate userModel
+            userModel->userMongo: UserSchema
+            activate userMongo
+            userMongo-->userModel: user
+            deactivate userMongo
+            userModel-->middleware: user
+            deactivate userModel
+            middleware->middleware: authorize('admin', 'user')
+            alt User role is admin or user
+
+                middleware->bookingController: deleteBooking()
+                activate bookingController
+                
+                alt Pass
+                    bookingController->bookingModel: findById(req.params.id)
+                    activate bookingModel
+                    bookingModel->bookingMongo: BookingSchema
+                    activate bookingMongo
+                    bookingMongo-->bookingModel: booking
+                    deactivate bookingMongo
+                    bookingModel-->bookingController: booking
+                    deactivate bookingModel
+
+                    alt Booking Exists
+                        alt User is admin or user owns the booking
+                            bookingController->bookingController: booking.remove()
+                            activate bookingController
+                            bookingController->bookingModel: remove()
+                            activate bookingModel
+                            bookingModel->bookingMongo: BookingSchema
+                            activate bookingMongo
+                            bookingMongo-->bookingModel: booking
+                            deactivate bookingMongo
+                            bookingModel-->bookingController: booking
+                            deactivate bookingController
+                            deactivate bookingModel
+                            bookingController->User:res.status(200).json({success, data})
+                        else Else
+                            bookingController->User:res.status(401).json({success, message})
+                        end
+                    else Else
+                        bookingController->User:res.status(404).json({success, message})
+                    end
+                else Except
+                    bookingController->User:res.status(500).json({success, message})
+                end
+                deactivate bookingController
+            
+            else Else
+                middleware->User: res.status(403).json({success, message})
+            end
+        else Except
+            middleware->User: res.status(401).json({success, message})
+        end
+    else Else
+        middleware->User: res.status(401).json({success, message})
+        deactivate middleware
+    end
+
+end
+deactivate User
+
+@enduml
