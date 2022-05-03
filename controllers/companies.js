@@ -90,7 +90,7 @@ exports.getCompany = async (req, res, next) => {
         .status(400)
         .json({
           success: false,
-          message: `No comapny with the id of ${req.params.id}`,
+          message: `No company with the id of ${req.params.id}`,
         });
     }
 
